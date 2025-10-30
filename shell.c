@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 // Macros
 #define LSH_RL_BUFSIZE 1024
@@ -48,7 +49,7 @@ char *lsh_read_line(void)
     }
 }
 
-char **lsh_split_line(char *line, int *out)
+char **lsh_split_line(char *line)
 {
     int bufsize = LSH_TOK_BUFSIZE, position = 0;
     char **tokens = malloc(bufsize * sizeof(char *));
@@ -82,8 +83,26 @@ char **lsh_split_line(char *line, int *out)
         }
         token = strtok(NULL, LSH_TOK_DELIM);
     }
-    *out = position;
     return tokens;
+}
+
+int lsh_launch(char **args)
+{
+    pid_t pid, wpid;
+    int status;
+    
+    pid = fork();
+
+    if (pid == 0) { 
+        // Child process                
+    } else if (pid < 0) { 
+        // Fork failed
+        perror("lsh");
+    } else { 
+        // Parent process 
+    }
+    
+    return 1;
 }
 
 void lsh_loop(void)
@@ -91,15 +110,11 @@ void lsh_loop(void)
     char *line;
     char **args;
     int status; // 0 = false | non-zero = true
-    int str_bufsize;
 
     do {
         printf("$ "); // I'm assuming this is the prompt symbol
         line = lsh_read_line();
-        args = lsh_split_line(line, &str_bufsize);
-        for (int i = 0; i < str_bufsize; i++) {
-            printf("%s\n", args[i]);
-        }
+        args = lsh_split_line(line);
         // status = lsh_execute(args);
     } while (status);
 
