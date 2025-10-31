@@ -12,6 +12,14 @@
 #define LSH_TOK_BUFSIZE 64
 #define LSH_TOK_DELIM " \t\r\n\a"
 
+// --
+// Function Declarations for builtin shell commands:
+// --
+int lsh_cd(char **args);
+int lsh_help(char **args);
+int lsh_exit(char **args);
+int lsh_execute(char **args);
+
 char *lsh_read_line(void)
 {
     int bufsize = LSH_RL_BUFSIZE; // Initially a KiB
@@ -123,11 +131,86 @@ void lsh_loop(void)
         printf("$ "); // I'm assuming this is the prompt symbol
         line = lsh_read_line();
         args = lsh_split_line(line);
-        // status = lsh_execute(args);
+        status = lsh_execute(args);
     } while (status);
 
     free(line);
     free(args);
+}
+
+// --
+// List of builtin commands, followed by their respective functions.
+// --
+char *builtin_str[] = {
+    "cd",
+    "help",
+    "exit",
+};
+
+int (*builtin_func[]) (char **) = {
+    &lsh_cd,
+    &lsh_exit, 
+    &lsh_help
+};
+
+int lsh_num_builtins()
+{
+    return sizeof(builtin_str) / sizeof(char *);
+}
+
+// --
+// Builtin function imeplementations.
+// --
+int lsh_cd(char **args)
+{
+    if (args[1] == NULL) { // We don't have where to cd into
+        fprintf(stderr, "lsh: expected argument to \"cd\"\n");
+    } else {
+        if (chdir(args[1]) != 0) {
+            perror("lsh");
+        }
+    }
+    return 1;
+}
+
+int lsh_help(char **args)
+{
+    int i;    
+    puts("Mrtypo's LSH");
+    puts("Type program names and arguments, and hit enter.");
+    puts("The following are built in");
+
+    for (int i = 0; lsh_num_builtins(); i++) {
+        printf("  %s\n", builtin_str[i]);
+    }
+
+    puts("Use the man command for information on other programs.");
+    return 1;
+}
+
+int lsh_exit(char **args)
+{
+    return 0;
+}
+
+int lsh_execute(char **args)
+{
+    int i;
+
+    if (args[0] == NULL) {
+        // An empty command was entered.
+        return 1;
+    }
+
+    // Check if the command is a built-in
+    for (i = 0; i < lsh_num_builtins(); i++) {
+        if (strcmp(args[0], builtin_str[i]) == 0) {
+            return (*builtin_func[i])(args);
+        }
+    }
+
+    // Not a built-in, call functionto start process.
+    return lsh_launch(args);
 }
 
 int main(int argc, char **argv)
