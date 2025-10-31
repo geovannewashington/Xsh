@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 // Macros
 #define LSH_RL_BUFSIZE 1024
@@ -95,11 +96,18 @@ int lsh_launch(char **args)
 
     if (pid == 0) { 
         // Child process                
+        if (execvp(args[0], args) == -1) {
+            perror("lsh");
+        }
+        exit(EXIT_FAILURE);
     } else if (pid < 0) { 
         // Fork failed
         perror("lsh");
     } else { 
         // Parent process 
+        do {
+            wpid = waitpid(pid, &status, WUNTRACED);
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     }
     
     return 1;
