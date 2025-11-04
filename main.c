@@ -6,8 +6,12 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
+// Generic function pointer type
+typedef void (*generic_func_ptr)(void *);
+
 // Macros
 #define LSH_RL_BUFSIZE 1024
+#define ARR_SIZE(xs) (sizeof(xs) / sizeof(xs[0]))
 
 #define LSH_TOK_BUFSIZE 64
 #define LSH_TOK_DELIM " \t\r\n\a"
@@ -97,7 +101,7 @@ char **lsh_split_line(char *line)
 
 int lsh_launch(char **args)
 {
-    pid_t pid, wpid;
+    pid_t pid;
     int status;
     
     pid = fork();
@@ -114,7 +118,7 @@ int lsh_launch(char **args)
     } else { 
         // Parent process 
         do {
-            wpid = waitpid(pid, &status, WUNTRACED);
+            waitpid(pid, &status, WUNTRACED);
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     }
     
@@ -141,21 +145,18 @@ void lsh_loop(void)
 // --
 // List of builtin commands, followed by their respective functions.
 // --
-char *builtin_str[] = {
-    "cd",
-    "help",
-    "exit",
-};
-
-int (*builtin_func[]) (char **) = {
-    &lsh_cd,
-    &lsh_exit, 
-    &lsh_help
+struct builtin_commands {
+    const char* cmd_command;
+    int(*fn)(char **);
+} builtin_cmds_arr[] = {
+    {.cmd_command = "cd", .fn = lsh_cd},
+    {.cmd_command = "help", .fn = lsh_help},
+    {.cmd_command = "exit", .fn = lsh_exit},
 };
 
 int lsh_num_builtins()
 {
-    return sizeof(builtin_str) / sizeof(char *);
+    return ARR_SIZE(builtin_cmds_arr);
 }
 
 // --
@@ -175,13 +176,15 @@ int lsh_cd(char **args)
 
 int lsh_help(char **args)
 {
+    (void) args;
+
     int i;    
-    puts("Mrtypo's LSH");
+    puts("mrtypo's LSH");
     puts("Type program names and arguments, and hit enter.");
     puts("The following are built in");
 
-    for (int i = 0; lsh_num_builtins(); i++) {
-        printf("  %s\n", builtin_str[i]);
+    for (i = 0; i < lsh_num_builtins(); i++) {
+        printf("  %s\n", builtin_cmds_arr[i].cmd_command);
     }
 
     puts("Use the man command for information on other programs.");
@@ -190,6 +193,7 @@ int lsh_help(char **args)
 
 int lsh_exit(char **args)
 {
+    (void) args;
     return 0;
 }
 
@@ -204,8 +208,8 @@ int lsh_execute(char **args)
 
     // Check if the command is a built-in
     for (i = 0; i < lsh_num_builtins(); i++) {
-        if (strcmp(args[0], builtin_str[i]) == 0) {
-            return (*builtin_func[i])(args);
+        if (strcmp(args[0], builtin_cmds_arr[i].cmd_command) == 0) {
+            return (*builtin_cmds_arr[i].fn)(args);
         }
     }
 
@@ -213,7 +217,7 @@ int lsh_execute(char **args)
     return lsh_launch(args);
 }
 
-int main(int argc, char **argv)
+int main()
 {
     // Load config files, if any.
 
